@@ -4,32 +4,32 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Expense Categorization Bot</title>
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-    <div class="sidebar">
-        <h2>Expense Bot</h2>
-        <button class="new-chat">+ New Chat</button>
-        <div id="chat-history"></div>
-    </div>
-
-    <div class="main">
-        <h1>Expense Categorization Bot</h1>
-
-        <!-- Expense Form -->
-        <div id="expense-form">
-            <label for="expense-desc">Enter Expense Description:</label>
-            <input type="text" id="expense-desc" placeholder="Bought a pizza...">
-            <button onclick="categorizeExpense()">Categorize</button>
+    <div class="container">
+        <div class="sidebar">
+            <h2>Expense Bot</h2>
+            <button id="newChat">+ New Chat</button>
         </div>
 
-        <!-- Chatbox Section -->
-        <div class="chatbox" id="chatbox"></div>
+        <div class="main">
+            <h1>Expense Categorization Bot</h1>
+            
+            <div class="form-container">
+                <label for="expenseInput">Enter Expense Description:</label>
+                <input type="text" id="expenseInput" placeholder="Bought a pizza...">
+                <button id="categorizeBtn">Categorize</button>
+            </div>
 
-        <!-- Chat Input Section -->
-        <div class="query-section">
-            <input type="text" id="query-input" placeholder="Ask anything about expenses...">
-            <button onclick="sendQuery()">Send</button>
+            <div class="chat-container">
+                <div id="chatBox"></div>
+            </div>
+
+            <div class="chat-input">
+                <input type="text" id="userInput" placeholder="Ask anything about expenses...">
+                <button id="sendBtn">Send</button>
+            </div>
         </div>
     </div>
 

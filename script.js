@@ -1,93 +1,76 @@
-const API_URL = "https://testing-production-808c.up.railway.app"; // Update with your backend URL
-
 document.addEventListener("DOMContentLoaded", function () {
-    const queryInput = document.getElementById("query-input");
-    const sendButton = document.getElementById("send-btn");
-    const chatBox = document.getElementById("chatbox");
-    const expenseForm = document.getElementById("expense-form");
+    const expenseInput = document.getElementById("expenseInput");
+    const categorizeBtn = document.getElementById("categorizeBtn");
+    const chatBox = document.getElementById("chatBox");
+    const userInput = document.getElementById("userInput");
+    const sendBtn = document.getElementById("sendBtn");
 
-    // Function to send user query to API
+    // Function to categorize expense
+    async function categorizeExpense() {
+        const expenseText = expenseInput.value.trim();
+        if (!expenseText) {
+            alert("Please enter an expense description.");
+            return;
+        }
+
+        appendMessage("User", expenseText);
+
+        try {
+            const response = await fetch("https://api.mistral.ai/v1/categorize", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": "Bearer Ynd1YZuLjwM02OPQVs3wInK4dNtXwFbT"
+                },
+                body: JSON.stringify({ query: expenseText })
+            });
+
+            const data = await response.json();
+            appendMessage("Bot", `Category: ${data.category || "Unknown"}`);
+        } catch (error) {
+            appendMessage("Bot", "Error categorizing expense.");
+            console.error("API Error:", error);
+        }
+
+        expenseInput.value = "";
+    }
+
+    // Function to handle chat input
     async function sendMessage() {
-        const userQuery = queryInput.value.trim();
-        if (userQuery === "") return;
+        const userMessage = userInput.value.trim();
+        if (!userMessage) return;
 
-        // Add user query to chat
-        addMessage("You", userQuery);
-        queryInput.value = ""; // Clear input field
+        appendMessage("User", userMessage);
 
         try {
-            const response = await fetch(`${API_URL}/ask`, {
+            const response = await fetch("https://api.mistral.ai/v1/chat", {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
+                    "Authorization": "Bearer Ynd1YZuLjwM02OPQVs3wInK4dNtXwFbT"
                 },
-                body: JSON.stringify({ query: userQuery }),
+                body: JSON.stringify({ query: userMessage })
             });
 
-            if (!response.ok) {
-                throw new Error(`HTTP Error! Status: ${response.status}`);
-            }
-
             const data = await response.json();
-            addMessage("Bot", data.response || "No response received.");
+            appendMessage("Bot", data.response || "I couldn't understand that.");
         } catch (error) {
-            console.error("Error:", error);
-            addMessage("Bot", "⚠️ Error processing request.");
+            appendMessage("Bot", "Error fetching response.");
+            console.error("Chat Error:", error);
         }
+
+        userInput.value = "";
     }
 
-    // Function to add messages to chatbox
-    function addMessage(sender, text) {
-        const messageElement = document.createElement("div");
-        messageElement.classList.add("message");
-
-        if (sender === "You") {
-            messageElement.classList.add("user-message");
-        } else {
-            messageElement.classList.add("bot-message");
-        }
-
-        const timestamp = new Date().toLocaleTimeString();
-        messageElement.innerHTML = `<strong>${sender}:</strong> ${text} <br> <small>${timestamp}</small>`;
-        
-        chatBox.appendChild(messageElement);
-        chatBox.scrollTop = chatBox.scrollHeight; // Auto-scroll to latest message
+    // Function to append messages to chat box
+    function appendMessage(sender, text) {
+        const messageDiv = document.createElement("div");
+        messageDiv.innerHTML = `<strong>${sender}:</strong> ${text}`;
+        chatBox.appendChild(messageDiv);
+        chatBox.scrollTop = chatBox.scrollHeight;
     }
 
-    // Event Listeners
-    sendButton.addEventListener("click", sendMessage);
-    queryInput.addEventListener("keypress", function (event) {
-        if (event.key === "Enter") sendMessage();
-    });
-
-    // Expense Form Submission
-    expenseForm.addEventListener("submit", async function (event) {
-        event.preventDefault();
-
-        const formData = new FormData(expenseForm);
-        const expenseData = {};
-        formData.forEach((value, key) => {
-            expenseData[key] = value;
-        });
-
-        try {
-            const response = await fetch(`${API_URL}/categorize`, {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                },
-                body: JSON.stringify(expenseData),
-            });
-
-            if (!response.ok) {
-                throw new Error(`HTTP Error! Status: ${response.status}`);
-            }
-
-            const data = await response.json();
-            addMessage("Bot", `Category: ${data.category || "Unknown"}`);
-        } catch (error) {
-            console.error("Error:", error);
-            addMessage("Bot", "⚠️ Error categorizing expense.");
-        }
-    });
+    // Event listeners
+    categorizeBtn.addEventListener("click", categorizeExpense);
+    sendBtn.addEventListener("click", sendMessage);
 });
