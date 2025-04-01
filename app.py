@@ -4,24 +4,23 @@ from flask_cors import CORS
 import os
 
 app = Flask(__name__)
-CORS(app)
+CORS(app, resources={r"/*": {"origins": "*"}})  # Allow GitHub Pages to connect
 
 # Get API key from environment variable
-MISTRAL_API_KEY = os.environ.get("Ynd1YZuLjwM02OPQVs3wInK4dNtXwFbT")
+MISTRAL_API_KEY = os.environ.get("MISTRAL_API_KEY")  # Corrected: Use the variable name
 if not MISTRAL_API_KEY:
     print("Warning: MISTRAL_API_KEY environment variable not set. Using fallback method.")
-    # Fallback to a config file or other secure method
-    # This is still better than hardcoding in the source code
+    # Fallback to a config file (optional, not needed in Replit if Secrets are set)
     try:
         with open('.env', 'r') as f:
             for line in f:
                 if line.startswith('MISTRAL_API_KEY='):
                     MISTRAL_API_KEY = line.split('=')[1].strip()
-    except:
+    except FileNotFoundError:
         pass
 
 if not MISTRAL_API_KEY:
-    raise ValueError("MISTRAL_API_KEY is not set. Please set it as an environment variable or in a .env file.")
+    raise ValueError("MISTRAL_API_KEY is not set. Please set it as an environment variable in Replit Secrets.")
 
 MISTRAL_ENDPOINT = "https://api.mistral.ai/v1/chat/completions"
 HEADERS = {
@@ -32,7 +31,6 @@ HEADERS = {
 def get_category_from_mistral(description):
     """Calls Mistral AI API to categorize an expense description."""
     try:
-        # Improved prompt for better categorization
         payload = {
             "model": "mistral-tiny",
             "messages": [
@@ -47,10 +45,8 @@ def get_category_from_mistral(description):
         response_data = response.json()
         if "choices" in response_data and response_data["choices"]:
             category = response_data["choices"][0].get("message", {}).get("content", "other").strip().lower()
-            # Clean the response to ensure it's just a category
             common_categories = ["food", "transportation", "housing", "utilities", "entertainment", 
                                "shopping", "travel", "health", "education", "other"]
-            
             for c in common_categories:
                 if c in category:
                     return c
@@ -86,7 +82,6 @@ def categorize():
         if category.startswith("error:"):
             return jsonify({"error": f"Failed to categorize expense: {category}", "category": "other"}), 500
         
-        # Return a more user-friendly response
         friendly_messages = {
             "food": "This looks like a food expense.",
             "transportation": "This is categorized as transportation.",
@@ -120,7 +115,6 @@ def categorize_query():
         if not query:
             return jsonify({"error": "Query cannot be empty"}), 400
 
-        # For general queries, use a different prompt
         try:
             payload = {
                 "model": "mistral-tiny",

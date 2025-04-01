@@ -1,18 +1,11 @@
-// Use relative URL when testing locally, absolute URL in production
-const isLocalhost = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1";
-const API_URL = isLocalhost ? "http://localhost:5000" : "https://your-deployed-api.com";
+// Use the Replit backend URL
+const API_URL = "https://smartspend.yourusername.replit.app"; // Replace with your actual Replit URL after Step 2
 
 let chatHistory = [];
 
-// Initialize the app
 document.addEventListener('DOMContentLoaded', function() {
-    // Set current year in footer
     document.getElementById('current-year').textContent = new Date().getFullYear();
-    
-    // Check if API is available
     checkApiStatus();
-    
-    // Load chat history from localStorage if available
     loadChatHistory();
 });
 
@@ -59,11 +52,8 @@ async function categorizeExpense() {
     }
 
     addMessage("You: " + expenseDesc, "user");
-    
-    // Show loading indicator
     const loadingMessage = addMessage("Bot: Categorizing your expense...", "bot loading");
-    
-    expenseInput.value = ""; // Clear input after sending
+    expenseInput.value = "";
 
     try {
         const response = await fetch(`${API_URL}/categorize`, {
@@ -72,7 +62,6 @@ async function categorizeExpense() {
             body: JSON.stringify({ description: expenseDesc })
         });
 
-        // Remove loading message
         loadingMessage.remove();
         
         if (!response.ok) {
@@ -81,16 +70,11 @@ async function categorizeExpense() {
         }
 
         const data = await response.json();
-        
-        // Create a nicely formatted response
         const botResponse = `${data.message || "I've categorized this as:"} <span class="category-tag">${data.category}</span>`;
         addMessage("Bot: " + botResponse, "bot", true);
         
-        // Add category icon based on category
         const messageElement = document.querySelector('.chat-message.bot:last-child');
         addCategoryIcon(messageElement, data.category);
-        
-        // Save to chat history
         saveChatItem(expenseDesc, botResponse);
     } catch (error) {
         addMessage("Bot: Sorry, I couldn't categorize that expense. " + error.message, "bot error");
@@ -107,11 +91,8 @@ async function sendQuery() {
     }
 
     addMessage("You: " + query, "user");
-    
-    // Show typing indicator
     const loadingMessage = addMessage("Bot: Thinking...", "bot loading");
-    
-    queryInput.value = ""; // Clear input after sending
+    queryInput.value = "";
 
     try {
         const response = await fetch(`${API_URL}/categorize_query`, {
@@ -120,7 +101,6 @@ async function sendQuery() {
             body: JSON.stringify({ query })
         });
 
-        // Remove loading message
         loadingMessage.remove();
         
         if (!response.ok) {
@@ -130,8 +110,6 @@ async function sendQuery() {
 
         const data = await response.json();
         addMessage("Bot: " + (data.response || "I'm not sure how to answer that."), "bot");
-        
-        // Save to chat history
         saveChatItem(query, data.response || "I'm not sure how to answer that.");
     } catch (error) {
         addMessage("Bot: Sorry, I couldn't process your query. " + error.message, "bot error");
@@ -140,8 +118,6 @@ async function sendQuery() {
 
 function addMessage(text, sender, isHTML = false) {
     const chatbox = document.getElementById("chatbox");
-    
-    // Remove welcome message if it exists
     const welcomeMessage = document.querySelector('.welcome-message');
     if (welcomeMessage) {
         welcomeMessage.remove();
@@ -158,7 +134,6 @@ function addMessage(text, sender, isHTML = false) {
     
     chatbox.appendChild(messageDiv);
     chatbox.scrollTop = chatbox.scrollHeight;
-    
     return messageDiv;
 }
 
@@ -183,7 +158,6 @@ function addCategoryIcon(messageElement, category) {
 }
 
 function showToast(message) {
-    // Create toast if it doesn't exist
     let toast = document.getElementById('toast');
     if (!toast) {
         toast = document.createElement('div');
@@ -191,11 +165,8 @@ function showToast(message) {
         document.body.appendChild(toast);
     }
     
-    // Set message and show
     toast.textContent = message;
     toast.className = 'show';
-    
-    // Hide after 3 seconds
     setTimeout(() => {
         toast.className = '';
     }, 3000);
@@ -209,15 +180,11 @@ function saveChatItem(question, answer) {
         timestamp: timestamp.toISOString()
     });
     
-    // Keep only last 10 conversations
     if (chatHistory.length > 10) {
         chatHistory = chatHistory.slice(-10);
     }
     
-    // Save to localStorage
     localStorage.setItem('expenseBotChatHistory', JSON.stringify(chatHistory));
-    
-    // Update sidebar history
     updateChatHistorySidebar();
 }
 
@@ -245,26 +212,18 @@ function updateChatHistorySidebar() {
         return;
     }
     
-    // Add each history item to sidebar
     chatHistory.forEach((item, index) => {
         const historyItem = document.createElement('div');
         historyItem.className = 'history-item';
-        
-        // Format timestamp
         const date = new Date(item.timestamp);
         const formattedTime = `${date.getHours()}:${String(date.getMinutes()).padStart(2, '0')}`;
-        
-        // Truncate question if too long
         const shortQuestion = item.question.length > 20 
             ? item.question.substring(0, 20) + '...' 
             : item.question;
-            
         historyItem.innerHTML = `<i class="fas fa-comment"></i> ${shortQuestion}`;
         historyItem.title = item.question;
         historyItem.dataset.index = index;
-        
         historyItem.addEventListener('click', () => loadChatFromHistory(index));
-        
         historyContainer.appendChild(historyItem);
     });
 }
@@ -272,19 +231,13 @@ function updateChatHistorySidebar() {
 function loadChatFromHistory(index) {
     if (index >= 0 && index < chatHistory.length) {
         const item = chatHistory[index];
-        
-        // Clear chatbox
         document.getElementById('chatbox').innerHTML = '';
-        
-        // Add the conversation
         addMessage("You: " + item.question, "user");
         addMessage("Bot: " + item.answer, "bot", true);
     }
 }
 
-// Initialize the New Chat functionality
 document.querySelector('.new-chat').addEventListener('click', function() {
-    // Clear the chatbox
     document.getElementById('chatbox').innerHTML = `
         <div class="welcome-message">
             <h3>Welcome to Expense Categorizer!</h3>
@@ -292,13 +245,10 @@ document.querySelector('.new-chat').addEventListener('click', function() {
             <p>Try entering an expense like "Dinner at a restaurant" or ask me something!</p>
         </div>
     `;
-    
-    // Clear input fields
     document.getElementById('expense-desc').value = '';
     document.getElementById('query-input').value = '';
 });
 
-// Handle Enter key press in input fields
 document.getElementById('expense-desc').addEventListener('keypress', function(e) {
     if (e.key === 'Enter') {
         categorizeExpense();
