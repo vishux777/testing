@@ -3,36 +3,180 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Expense Categorization Bot</title>
-    <link rel="stylesheet" href="styles.css">
+    <title>SmartSpend - Expense Categorization Assistant</title>
+    <link rel="stylesheet" href="style.css">
+    <!-- Google Fonts - Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Font Awesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body>
-    <div class="container">
-        <div class="sidebar">
-            <h2>Expense Bot</h2>
-            <button id="newChat">+ New Chat</button>
+    <div class="sidebar">
+        <div class="logo-container">
+            <i class="fas fa-robot logo-icon"></i>
+            <h2>SmartSpend</h2>
+        </div>
+        <button class="new-chat"><i class="fas fa-plus"></i> New Chat</button>
+        
+        <div class="history-container">
+            <div class="history-label">Chat History</div>
+            <div id="chat-history" class="chat-history">
+                <!-- History items will be added here dynamically -->
+            </div>
+        </div>
+        
+        <div class="sidebar-footer">
+            <button id="dark-mode-toggle" class="mode-toggle">
+                <i class="fas fa-moon"></i> Dark Mode
+            </button>
+        </div>
+    </div>
+
+    <div class="main">
+        <div class="header">
+            <h1><i class="fas fa-coins"></i> SmartSpend Assistant</h1>
+            <p class="subtitle">AI-powered expense categorization to simplify your financial tracking</p>
         </div>
 
-        <div class="main">
-            <h1>Expense Categorization Bot</h1>
-            
-            <div class="form-container">
-                <label for="expenseInput">Enter Expense Description:</label>
-                <input type="text" id="expenseInput" placeholder="Bought a pizza...">
-                <button id="categorizeBtn">Categorize</button>
+        <!-- Expense Form -->
+        <div id="expense-form">
+            <h3><i class="fas fa-receipt"></i> Categorize Your Expense</h3>
+            <div class="input-group">
+                <label for="expense-desc">Enter Expense Description:</label>
+                <div class="input-with-button">
+                    <input type="text" id="expense-desc" placeholder="e.g., Uber ride to airport, Grocery shopping at Walmart...">
+                    <button onclick="categorizeExpense()" class="primary-btn">
+                        <span>Categorize</span>
+                        <i class="fas fa-tag"></i>
+                    </button>
+                </div>
+            </div>
+            <div class="examples">
+                <p>Examples: "Coffee at Starbucks", "Amazon Prime subscription", "Electricity bill"</p>
+            </div>
+        </div>
+
+        <!-- Chatbox Section -->
+        <div class="chatbox-container">
+            <div class="chatbox" id="chatbox">
+                <div class="welcome-message">
+                    <div class="welcome-icon"><i class="fas fa-hand-wave"></i></div>
+                    <h3>Welcome to SmartSpend Assistant!</h3>
+                    <p>I can help you categorize your expenses or answer questions about expense management.</p>
+                    <div class="suggestion-chips">
+                        <div class="chip" onclick="useExample('Dinner at an Italian restaurant')">Dinner at restaurant</div>
+                        <div class="chip" onclick="useExample('Monthly Netflix subscription')">Netflix subscription</div>
+                        <div class="chip" onclick="useExample('Uber ride to airport')">Uber ride</div>
+                    </div>
+                </div>
             </div>
 
-            <div class="chat-container">
-                <div id="chatBox"></div>
+            <!-- Chat Input Section -->
+            <div class="query-section">
+                <input type="text" id="query-input" placeholder="Ask anything about expenses or categories...">
+                <button onclick="sendQuery()" class="send-btn">
+                    <i class="fas fa-paper-plane"></i>
+                </button>
             </div>
-
-            <div class="chat-input">
-                <input type="text" id="userInput" placeholder="Ask anything about expenses...">
-                <button id="sendBtn">Send</button>
+        </div>
+        
+        <div class="app-footer">
+            <p><i class="fas fa-code"></i> Developed By VDA Team (LPU) • <span id="current-year"></span></p>
+            <div class="status-indicator">
+                <span id="api-status" class="status-offline">API offline</span>
             </div>
         </div>
     </div>
 
+    <!-- Loading overlay -->
+    <div id="loading-overlay" class="loading-overlay hidden">
+        <div class="spinner"></div>
+        <p>Processing request...</p>
+    </div>
+
     <script src="script.js"></script>
+    <script>
+        // Set current year in footer
+        document.getElementById('current-year').textContent = new Date().getFullYear();
+        
+        // Handle Enter key press in input fields
+        document.getElementById('expense-desc').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                categorizeExpense();
+            }
+        });
+        
+        document.getElementById('query-input').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                sendQuery();
+            }
+        });
+        
+        // New chat button functionality
+        document.querySelector('.new-chat').addEventListener('click', function() {
+            // Clear the chatbox
+            document.getElementById('chatbox').innerHTML = `
+                <div class="welcome-message">
+                    <div class="welcome-icon"><i class="fas fa-hand-wave"></i></div>
+                    <h3>Welcome to SmartSpend Assistant!</h3>
+                    <p>I can help you categorize your expenses or answer questions about expense management.</p>
+                    <div class="suggestion-chips">
+                        <div class="chip" onclick="useExample('Dinner at an Italian restaurant')">Dinner at restaurant</div>
+                        <div class="chip" onclick="useExample('Monthly Netflix subscription')">Netflix subscription</div>
+                        <div class="chip" onclick="useExample('Uber ride to airport')">Uber ride</div>
+                    </div>
+                </div>
+            `;
+            
+            // Clear input fields
+            document.getElementById('expense-desc').value = '';
+            document.getElementById('query-input').value = '';
+            
+            // Add to history
+            addToHistory();
+        });
+        
+        // Dark/Light mode toggle
+        document.getElementById('dark-mode-toggle').addEventListener('click', function() {
+            document.body.classList.toggle('light-mode');
+            const icon = this.querySelector('i');
+            if (document.body.classList.contains('light-mode')) {
+                icon.className = 'fas fa-sun';
+                this.innerHTML = '<i class="fas fa-sun"></i> Light Mode';
+            } else {
+                icon.className = 'fas fa-moon';
+                this.innerHTML = '<i class="fas fa-moon"></i> Dark Mode';
+            }
+        });
+        
+        // Add chat to history
+        function addToHistory() {
+            const now = new Date();
+            const timeStr = `${now.getHours()}:${String(now.getMinutes()).padStart(2, '0')}`;
+            const historyItem = document.createElement('div');
+            historyItem.className = 'history-item';
+            historyItem.innerHTML = `<i class="fas fa-comment"></i> Chat ${timeStr}`;
+            document.getElementById('chat-history').prepend(historyItem);
+        }
+        
+        // Use example suggestions
+        function useExample(text) {
+            document.getElementById('expense-desc').value = text;
+            categorizeExpense();
+        }
+        
+        // Check API status on page load
+        window.addEventListener('load', async function() {
+            try {
+                const response = await fetch(`${API_URL}/`);
+                if (response.ok) {
+                    document.getElementById('api-status').className = 'status-online';
+                    document.getElementById('api-status').textContent = 'API online';
+                }
+            } catch (error) {
+                console.error("API check failed:", error);
+            }
+        });
+    </script>
 </body>
 </html>
