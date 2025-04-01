@@ -1,26 +1,19 @@
-from flask import Flask, request, jsonify
+import streamlit as st
 import requests
-from flask_cors import CORS
 import os
 
-app = Flask(__name__)
-CORS(app, resources={r"/*": {"origins": "*"}})  # Allow GitHub Pages to connect
-
-# Get API key from environment variable
-MISTRAL_API_KEY = os.environ.get("MISTRAL_API_KEY")  # Corrected: Use the variable name
+# Get API key from environment variable (Streamlit Community Cloud uses secrets)
+MISTRAL_API_KEY = os.environ.get("MISTRAL_API_KEY")
 if not MISTRAL_API_KEY:
-    print("Warning: MISTRAL_API_KEY environment variable not set. Using fallback method.")
-    # Fallback to a config file (optional, not needed in Replit if Secrets are set)
+    # For local testing, you could use a fallback (optional)
     try:
         with open('.env', 'r') as f:
             for line in f:
                 if line.startswith('MISTRAL_API_KEY='):
                     MISTRAL_API_KEY = line.split('=')[1].strip()
     except FileNotFoundError:
-        pass
-
-if not MISTRAL_API_KEY:
-    raise ValueError("MISTRAL_API_KEY is not set. Please set it as an environment variable in Replit Secrets.")
+        st.warning("MISTRAL_API_KEY not set. Please set it in environment variables or secrets.")
+        st.stop()
 
 MISTRAL_ENDPOINT = "https://api.mistral.ai/v1/chat/completions"
 HEADERS = {
@@ -40,7 +33,7 @@ def get_category_from_mistral(description):
             "temperature": 0.3
         }
         response = requests.post(MISTRAL_ENDPOINT, json=payload, headers=HEADERS, timeout=10)
-        response.raise_for_status()  # Raise an error for HTTP failures
+        response.raise_for_status()
 
         response_data = response.json()
         if "choices" in response_data and response_data["choices"]:
@@ -51,37 +44,50 @@ def get_category_from_mistral(description):
                 if c in category:
                     return c
             return "other"
-        print("No valid choices in response:", response_data)
+        st.write("No valid choices in response:", response_data)
         return "other"
     except requests.exceptions.Timeout:
-        print("Request to Mistral API timed out.")
-        return "error: Request timed out"
+        st.error("Request to Mistral API timed out.")
+        return "other"
     except requests.exceptions.HTTPError as e:
-        print(f"HTTP error: {e}, Status Code: {e.response.status_code}, Response: {e.response.text}")
-        return f"error: HTTP error - {e.response.status_code}"
-    except requests.exceptions.RequestException as e:
-        print(f"Request error: {e}")
-        return f"error: Request failed - {str(e)}"
+        st.error(f"HTTP error: {e.response.status_code}")
+        return "other"
     except Exception as e:
-        print(f"General error: {e}")
-        return f"error: General error - {str(e)}"
+        st.error(f"Error: {str(e)}")
+        return "other"
 
-@app.route("/categorize", methods=["POST"])
-def categorize():
-    """Handles expense categorization requests."""
+def get_query_response(query):
+    """Handles general queries via Mistral API."""
     try:
-        data = request.get_json()
-        if not data or "description" not in data:
-            return jsonify({"error": "Invalid or missing JSON data, 'description' is required"}), 400
+        payload = {
+            "model": "mistral-tiny",
+            "messages": [
+                {"role": "system", "content": "You are an expense management assistant. Provide helpful, concise responses about expense categories, finance management, and budgeting."},
+                {"role": "user", "content": query}
+            ],
+            "temperature": 0.7,
+            "max_tokens": 150
+        }
+        response = requests.post(MISTRAL_ENDPOINT, json=payload, headers=HEADERS, timeout=10)
+        response.raise_for_status()
 
-        description = data.get("description", "").strip()
-        if not description:
-            return jsonify({"error": "Description cannot be empty"}), 400
+        response_data = response.json()
+        if "choices" in response_data and response_data["choices"]:
+            return response_data["choices"][0].get("message", {}).get("content", "").strip()
+        return "I couldn't process your query. Please try again."
+    except Exception as e:
+        st.error(f"Error processing query: {e}")
+        return "I'm having trouble connecting to my knowledge base. Please try again later."
 
+# Streamlit UI
+st.title("Expense Categorization App")
+
+# Expense Categorization Section
+st.header("Categorize an Expense")
+description = st.text_input("Enter expense description (e.g., 'Dinner at restaurant')")
+if st.button("Categorize"):
+    if description.strip():
         category = get_category_from_mistral(description)
-        if category.startswith("error:"):
-            return jsonify({"error": f"Failed to categorize expense: {category}", "category": "other"}), 500
-        
         friendly_messages = {
             "food": "This looks like a food expense.",
             "transportation": "This is categorized as transportation.",
@@ -94,57 +100,20 @@ def categorize():
             "education": "This is an education expense.",
             "other": "This doesn't fit our standard categories."
         }
-        
-        return jsonify({
-            "category": category,
-            "message": friendly_messages.get(category, f"Categorized as {category}.")
-        })
-    except Exception as e:
-        print(f"Error in /categorize endpoint: {e}")
-        return jsonify({"error": f"Internal server error: {str(e)}", "category": "other"}), 500
+        st.success(f"Category: {category}")
+        st.write(friendly_messages.get(category, f"Categorized as {category}."))
+    else:
+        st.error("Please enter a description.")
 
-@app.route("/categorize_query", methods=["POST"])
-def categorize_query():
-    """Handles query-based categorization requests."""
-    try:
-        data = request.get_json()
-        if not data or "query" not in data:
-            return jsonify({"error": "Invalid or missing JSON data, 'query' is required"}), 400
+# Query Section
+st.header("Ask a Finance Question")
+query = st.text_input("Enter your question (e.g., 'How do I budget for travel?')")
+if st.button("Ask"):
+    if query.strip():
+        response = get_query_response(query)
+        st.write("Answer:", response)
+    else:
+        st.error("Please enter a question.")
 
-        query = data.get("query", "").strip()
-        if not query:
-            return jsonify({"error": "Query cannot be empty"}), 400
-
-        try:
-            payload = {
-                "model": "mistral-tiny",
-                "messages": [
-                    {"role": "system", "content": "You are an expense management assistant. Provide helpful, concise responses about expense categories, finance management, and budgeting."},
-                    {"role": "user", "content": query}
-                ],
-                "temperature": 0.7,
-                "max_tokens": 150
-            }
-            response = requests.post(MISTRAL_ENDPOINT, json=payload, headers=HEADERS, timeout=10)
-            response.raise_for_status()
-
-            response_data = response.json()
-            if "choices" in response_data and response_data["choices"]:
-                answer = response_data["choices"][0].get("message", {}).get("content", "").strip()
-                return jsonify({"response": answer})
-            return jsonify({"response": "I couldn't process your query. Please try again."})
-        except Exception as e:
-            print(f"Error in query processing: {e}")
-            return jsonify({"response": "I'm having trouble connecting to my knowledge base. Please try again later."}), 500
-    except Exception as e:
-        print(f"Error in /categorize_query endpoint: {e}")
-        return jsonify({"error": f"Internal server error: {str(e)}"}), 500
-
-@app.route("/", methods=["GET"])
-def home():
-    """Health check endpoint."""
-    return jsonify({"status": "ok", "message": "Expense Categorization API is running"})
-
-if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 5000))
-    app.run(host="0.0.0.0", port=port, debug=True)
+# Footer
+st.write("Powered by Mistral AI and Streamlit")
