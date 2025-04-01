@@ -1,8 +1,12 @@
-import streamlit as st
+from flask import Flask, request, jsonify
 import requests
 import os
+from flask_cors import CORS
 
-# Get API key from environment variable (Streamlit Community Cloud uses secrets)
+app = Flask(__name__)
+CORS(app)  # Enable CORS for all routes
+
+# Get API key from environment variable
 MISTRAL_API_KEY = os.environ.get("MISTRAL_API_KEY")
 if not MISTRAL_API_KEY:
     # For local testing, you could use a fallback (optional)
@@ -12,8 +16,8 @@ if not MISTRAL_API_KEY:
                 if line.startswith('MISTRAL_API_KEY='):
                     MISTRAL_API_KEY = line.split('=')[1].strip()
     except FileNotFoundError:
-        st.warning("MISTRAL_API_KEY not set. Please set it in environment variables or secrets.")
-        st.stop()
+        print("MISTRAL_API_KEY not set. Please set it in environment variables or secrets.")
+        exit(1)
 
 MISTRAL_ENDPOINT = "https://api.mistral.ai/v1/chat/completions"
 HEADERS = {
@@ -44,16 +48,16 @@ def get_category_from_mistral(description):
                 if c in category:
                     return c
             return "other"
-        st.write("No valid choices in response:", response_data)
+        print("No valid choices in response:", response_data)
         return "other"
     except requests.exceptions.Timeout:
-        st.error("Request to Mistral API timed out.")
+        print("Request to Mistral API timed out.")
         return "other"
     except requests.exceptions.HTTPError as e:
-        st.error(f"HTTP error: {e.response.status_code}")
+        print(f"HTTP error: {e.response.status_code}")
         return "other"
     except Exception as e:
-        st.error(f"Error: {str(e)}")
+        print(f"Error: {str(e)}")
         return "other"
 
 def get_query_response(query):
@@ -76,44 +80,48 @@ def get_query_response(query):
             return response_data["choices"][0].get("message", {}).get("content", "").strip()
         return "I couldn't process your query. Please try again."
     except Exception as e:
-        st.error(f"Error processing query: {e}")
+        print(f"Error processing query: {e}")
         return "I'm having trouble connecting to my knowledge base. Please try again later."
 
-# Streamlit UI
-st.title("Expense Categorization App")
+@app.route('/')
+def home():
+    return jsonify({"status": "API is running"})
 
-# Expense Categorization Section
-st.header("Categorize an Expense")
-description = st.text_input("Enter expense description (e.g., 'Dinner at restaurant')")
-if st.button("Categorize"):
-    if description.strip():
-        category = get_category_from_mistral(description)
-        friendly_messages = {
-            "food": "This looks like a food expense.",
-            "transportation": "This is categorized as transportation.",
-            "housing": "This is a housing-related expense.",
-            "utilities": "This falls under utilities.",
-            "entertainment": "This is categorized as entertainment.",
-            "shopping": "This appears to be a shopping expense.",
-            "travel": "This is a travel expense.",
-            "health": "This is a health-related expense.",
-            "education": "This is an education expense.",
-            "other": "This doesn't fit our standard categories."
-        }
-        st.success(f"Category: {category}")
-        st.write(friendly_messages.get(category, f"Categorized as {category}."))
-    else:
-        st.error("Please enter a description.")
+@app.route('/categorize', methods=['POST'])
+def categorize():
+    data = request.get_json()
+    description = data.get('description', '')
+    if not description:
+        return jsonify({"error": "Description is required"}), 400
+    
+    category = get_category_from_mistral(description)
+    friendly_messages = {
+        "food": "This looks like a food expense.",
+        "transportation": "This is categorized as transportation.",
+        "housing": "This is a housing-related expense.",
+        "utilities": "This falls under utilities.",
+        "entertainment": "This is categorized as entertainment.",
+        "shopping": "This appears to be a shopping expense.",
+        "travel": "This is a travel expense.",
+        "health": "This is a health-related expense.",
+        "education": "This is an education expense.",
+        "other": "This doesn't fit our standard categories."
+    }
+    
+    return jsonify({
+        "category": category,
+        "message": friendly_messages.get(category, f"Categorized as {category}.")
+    })
 
-# Query Section
-st.header("Ask a Finance Question")
-query = st.text_input("Enter your question (e.g., 'How do I budget for travel?')")
-if st.button("Ask"):
-    if query.strip():
-        response = get_query_response(query)
-        st.write("Answer:", response)
-    else:
-        st.error("Please enter a question.")
+@app.route('/categorize_query', methods=['POST'])
+def categorize_query():
+    data = request.get_json()
+    query = data.get('query', '')
+    if not query:
+        return jsonify({"error": "Query is required"}), 400
+    
+    response = get_query_response(query)
+    return jsonify({"response": response})
 
-# Footer
-st.write("Powered by Mistral AI and Streamlit")
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=5000)
