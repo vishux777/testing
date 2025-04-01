@@ -1,16 +1,19 @@
 import streamlit as st
 import requests
 import os
-from dotenv import load_dotenv
 
-# Load .env file for local development (optional)
-load_dotenv()
-
-# Get API key
+# Get API key from environment variable (Streamlit Community Cloud uses secrets)
 MISTRAL_API_KEY = os.environ.get("MISTRAL_API_KEY")
 if not MISTRAL_API_KEY:
-    st.error("MISTRAL_API_KEY is not set. Please set it in your environment variables (locally) or Streamlit Cloud secrets.")
-    st.stop()
+    # For local testing, you could use a fallback (optional)
+    try:
+        with open('.env', 'r') as f:
+            for line in f:
+                if line.startswith('MISTRAL_API_KEY='):
+                    MISTRAL_API_KEY = line.split('=')[1].strip()
+    except FileNotFoundError:
+        st.warning("MISTRAL_API_KEY not set. Please set it in environment variables or secrets.")
+        st.stop()
 
 MISTRAL_ENDPOINT = "https://api.mistral.ai/v1/chat/completions"
 HEADERS = {
@@ -19,6 +22,7 @@ HEADERS = {
 }
 
 def get_category_from_mistral(description):
+    """Calls Mistral AI API to categorize an expense description."""
     try:
         payload = {
             "model": "mistral-tiny",
@@ -35,17 +39,25 @@ def get_category_from_mistral(description):
         if "choices" in response_data and response_data["choices"]:
             category = response_data["choices"][0].get("message", {}).get("content", "other").strip().lower()
             common_categories = ["food", "transportation", "housing", "utilities", "entertainment", 
-                                "shopping", "travel", "health", "education", "other"]
+                               "shopping", "travel", "health", "education", "other"]
             for c in common_categories:
                 if c in category:
                     return c
             return "other"
+        st.write("No valid choices in response:", response_data)
+        return "other"
+    except requests.exceptions.Timeout:
+        st.error("Request to Mistral API timed out.")
+        return "other"
+    except requests.exceptions.HTTPError as e:
+        st.error(f"HTTP error: {e.response.status_code}")
         return "other"
     except Exception as e:
-        st.error(f"Error categorizing expense: {str(e)}")
+        st.error(f"Error: {str(e)}")
         return "other"
 
 def get_query_response(query):
+    """Handles general queries via Mistral API."""
     try:
         payload = {
             "model": "mistral-tiny",
@@ -64,12 +76,13 @@ def get_query_response(query):
             return response_data["choices"][0].get("message", {}).get("content", "").strip()
         return "I couldn't process your query. Please try again."
     except Exception as e:
-        st.error(f"Error processing query: {str(e)}")
+        st.error(f"Error processing query: {e}")
         return "I'm having trouble connecting to my knowledge base. Please try again later."
 
 # Streamlit UI
 st.title("Expense Categorization App")
 
+# Expense Categorization Section
 st.header("Categorize an Expense")
 description = st.text_input("Enter expense description (e.g., 'Dinner at restaurant')")
 if st.button("Categorize"):
@@ -92,6 +105,7 @@ if st.button("Categorize"):
     else:
         st.error("Please enter a description.")
 
+# Query Section
 st.header("Ask a Finance Question")
 query = st.text_input("Enter your question (e.g., 'How do I budget for travel?')")
 if st.button("Ask"):
@@ -101,4 +115,5 @@ if st.button("Ask"):
     else:
         st.error("Please enter a question.")
 
+# Footer
 st.write("Powered by Mistral AI and Streamlit")
