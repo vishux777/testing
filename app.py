@@ -1,6 +1,16 @@
 import streamlit as st
 import requests
 import os
+from streamlit.components.v1 import html
+
+# Your existing Streamlit code
+st.title("Expense Categorization App")
+
+# Add your HTML file
+with open("index.html", "r") as f:
+    html_content = f.read()
+
+html(html_content, height=600)
 
 # Get API key from environment variable (Streamlit Community Cloud uses secrets)
 MISTRAL_API_KEY = os.environ.get("MISTRAL_API_KEY")
