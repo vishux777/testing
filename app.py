@@ -2,6 +2,10 @@ import streamlit as st
 import requests
 import os
 from dotenv import load_dotenv
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+import streamlit.web.bootstrap as bootstrap
+from streamlit.web.server.server import Server
 
 # Load environment variables from .env file if it exists
 load_dotenv()
@@ -22,6 +26,26 @@ HEADERS = {
     "Authorization": f"Bearer {MISTRAL_API_KEY}",
     "Content-Type": "application/json"
 }
+
+# Configure FastAPI for CORS
+def configure_cors_for_streamlit():
+    # Get the FastAPI instance that Streamlit uses
+    try:
+        server = Server.get_current()
+        if server is not None:
+            app = server._app
+            
+            # Add CORS middleware
+            app.add_middleware(
+                CORSMiddleware,
+                allow_origins=["*"],  # Allows all origins
+                allow_credentials=True,
+                allow_methods=["*"],  # Allows all methods
+                allow_headers=["*"],  # Allows all headers
+            )
+            print("CORS middleware added successfully")
+    except Exception as e:
+        print(f"Error configuring CORS: {e}")
 
 def get_category_from_mistral(description):
     """Calls Mistral AI API to categorize an expense description."""
@@ -81,14 +105,91 @@ def get_query_response(query):
         st.error(f"Error processing query: {e}")
         return "I'm having trouble connecting to my knowledge base. Please try again later."
 
-# Add API endpoints for frontend connectivity
-def add_cors_headers():
-    st.response_headers["Access-Control-Allow-Origin"] = "*"
-    st.response_headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS"
-    st.response_headers["Access-Control-Allow-Headers"] = "Content-Type"
+# Create FastAPI app with routes for API access
+from fastapi import Request, Response, Body
+import json
+
+# Create a FastAPI instance
+api = FastAPI()
+
+# Add CORS middleware to the FastAPI app
+api.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Adjust this to be more restrictive in production
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+@api.post("/categorize")
+async def categorize_endpoint(request: Request):
+    try:
+        data = await request.json()
+        description = data.get("description", "")
+        if not description:
+            return Response(
+                content=json.dumps({"error": "Description is required"}),
+                media_type="application/json",
+                status_code=400
+            )
+        
+        category = get_category_from_mistral(description)
+        friendly_messages = {
+            "food": "This looks like a food expense.",
+            "transportation": "This is categorized as transportation.",
+            "housing": "This is a housing-related expense.",
+            "utilities": "This falls under utilities.",
+            "entertainment": "This is categorized as entertainment.",
+            "shopping": "This appears to be a shopping expense.",
+            "travel": "This is a travel expense.",
+            "health": "This is a health-related expense.",
+            "education": "This is an education expense.",
+            "other": "This doesn't fit our standard categories."
+        }
+        
+        return Response(
+            content=json.dumps({
+                "category": category,
+                "message": friendly_messages.get(category, f"Categorized as {category}.")
+            }),
+            media_type="application/json"
+        )
+    except Exception as e:
+        return Response(
+            content=json.dumps({"error": str(e)}),
+            media_type="application/json",
+            status_code=500
+        )
+
+@api.post("/query")
+async def query_endpoint(request: Request):
+    try:
+        data = await request.json()
+        query = data.get("query", "")
+        if not query:
+            return Response(
+                content=json.dumps({"error": "Query is required"}),
+                media_type="application/json",
+                status_code=400
+            )
+        
+        response = get_query_response(query)
+        return Response(
+            content=json.dumps({"response": response}),
+            media_type="application/json"
+        )
+    except Exception as e:
+        return Response(
+            content=json.dumps({"error": str(e)}),
+            media_type="application/json",
+            status_code=500
+        )
 
 # Main Streamlit UI
 def main():
+    # Try to configure CORS
+    configure_cors_for_streamlit()
+    
     st.title("SmartSpend - Expense Categorization API")
     
     # Create tabs for different views
@@ -129,7 +230,7 @@ def main():
     with tab2:
         st.header("API Endpoints")
         st.markdown("""
-        When deployed, this Streamlit app will serve the following API endpoints:
+        This Streamlit app serves the following API endpoints:
         
         - `/categorize` - POST endpoint for categorizing expenses
           - Request body: `{"description": "Your expense description"}`
@@ -138,25 +239,30 @@ def main():
         - `/query` - POST endpoint for finance questions
           - Request body: `{"query": "Your finance question"}`
           - Returns: `{"response": "AI response to query"}`
+        
+        CORS is enabled for all origins, allowing your frontend to connect from any domain.
         """)
     
     with tab3:
         st.header("Deployment Status")
         st.success("✅ Backend API is running")
         st.info("Access the API endpoints from your frontend application")
+        st.info("CORS is enabled to allow cross-origin requests")
         
     # Footer
     st.markdown("---")
     st.write("Powered by Mistral AI and Streamlit")
 
-# API endpoints for frontend
+# Deploy both Streamlit UI and FastAPI endpoints
 if __name__ == "__main__":
-    # Check if running as script (local development) or through Streamlit
+    # Check if running in API-only mode
     import sys
     if len(sys.argv) > 1 and sys.argv[1] == "api":
-        # We could add FastAPI integration here for pure API mode
-        # But for now, we'll keep it simple with Streamlit's built-in server
-        pass
-    
-    # Run the Streamlit application
-    main()
+        import uvicorn
+        uvicorn.run(api, host="0.0.0.0", port=8000)
+    else:
+        # Mount the FastAPI app as a middleware
+        from starlette.middleware.wsgi import WSGIMiddleware
+        
+        # Run the Streamlit application
+        main()
