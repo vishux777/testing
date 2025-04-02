@@ -1,14 +1,102 @@
-// Configure the API URL - change this to your Streamlit deployment URL when deployed
-//const API_URL = "http://localhost:8501"; // Default for local development
-const API_URL = "https://smartspend.streamlit.app/"; // Uncomment and change this when deployed
+// Configure the API URL - Set to local server when developing locally
+const API_URL = ""; // Empty means same origin (same server)
 
+// Chat history storage
 let chatHistory = [];
 
+// Application state
+let isLightMode = false;
+
 document.addEventListener('DOMContentLoaded', function() {
+    // Set current year in footer
     document.getElementById('current-year').textContent = new Date().getFullYear();
-    checkApiStatus();
+    
+    // Load saved theme preference
+    loadThemePreference();
+    
+    // Load chat history
     loadChatHistory();
+    
+    // Set up event listeners
+    setupEventListeners();
+    
+    // Check API status
+    checkApiStatus();
 });
+
+function setupEventListeners() {
+    // Handle Enter key press in input fields
+    document.getElementById('expense-desc').addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            categorizeExpense();
+        }
+    });
+    
+    document.getElementById('query-input').addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            sendQuery();
+        }
+    });
+    
+    // New chat button functionality
+    document.querySelector('.new-chat').addEventListener('click', function() {
+        resetChat();
+    });
+    
+    // Dark/Light mode toggle
+    document.getElementById('dark-mode-toggle').addEventListener('click', toggleTheme);
+}
+
+function toggleTheme() {
+    isLightMode = !isLightMode;
+    
+    if (isLightMode) {
+        document.body.classList.add('light-mode');
+        document.getElementById('dark-mode-toggle').innerHTML = '<i class="fas fa-sun"></i> Light Mode';
+    } else {
+        document.body.classList.remove('light-mode');
+        document.getElementById('dark-mode-toggle').innerHTML = '<i class="fas fa-moon"></i> Dark Mode';
+    }
+    
+    // Save preference to localStorage
+    localStorage.setItem('smartspend-theme', isLightMode ? 'light' : 'dark');
+}
+
+function loadThemePreference() {
+    const savedTheme = localStorage.getItem('smartspend-theme');
+    
+    if (savedTheme) {
+        isLightMode = savedTheme === 'light';
+        
+        if (isLightMode) {
+            document.body.classList.add('light-mode');
+            document.getElementById('dark-mode-toggle').innerHTML = '<i class="fas fa-sun"></i> Light Mode';
+        } else {
+            document.body.classList.remove('light-mode');
+            document.getElementById('dark-mode-toggle').innerHTML = '<i class="fas fa-moon"></i> Dark Mode';
+        }
+    }
+}
+
+function resetChat() {
+    document.getElementById('chatbox').innerHTML = `
+        <div class="welcome-message">
+            <div class="welcome-icon"><i class="fas fa-hand-wave"></i></div>
+            <h3>Welcome to SmartSpend Assistant!</h3>
+            <p>I can help you categorize your expenses or answer questions about expense management.</p>
+            <div class="suggestion-chips">
+                <div class="chip" onclick="useExample('Dinner at an Italian restaurant')">Dinner at restaurant</div>
+                <div class="chip" onclick="useExample('Monthly Netflix subscription')">Netflix subscription</div>
+                <div class="chip" onclick="useExample('Uber ride to airport')">Uber ride</div>
+            </div>
+        </div>
+    `;
+    document.getElementById('expense-desc').value = '';
+    document.getElementById('query-input').value = '';
+    
+    // Add a new entry to history
+    addToHistory();
+}
 
 async function checkApiStatus() {
     try {
@@ -18,26 +106,25 @@ async function checkApiStatus() {
         statusIndicator.className = 'status-checking';
         statusIndicator.textContent = 'Checking API connection...';
         
-        // Try to reach the Streamlit app
-        const response = await fetch(`${API_URL}`, {
+        // Try to reach the API endpoint
+        const response = await fetch(`${API_URL}/`, {
             method: "GET",
-            headers: { "Content-Type": "application/json" },
-            mode: 'cors' // Important for cross-origin requests
+            headers: { "Content-Type": "application/json" }
         });
         
         if (response.ok) {
             statusIndicator.className = 'status-online';
-            statusIndicator.innerHTML = 'API online';
+            statusIndicator.innerHTML = '<i class="fas fa-circle"></i> API online';
         } else {
             throw new Error("API not responding");
         }
     } catch (error) {
+        console.error("API status check failed:", error);
         const statusIndicator = document.getElementById('api-status');
         if (statusIndicator) {
             statusIndicator.className = 'status-offline';
-            statusIndicator.innerHTML = 'API offline';
+            statusIndicator.innerHTML = '<i class="fas fa-times-circle"></i> API offline';
         }
-        console.error("API status check failed:", error);
     }
 }
 
@@ -50,21 +137,23 @@ async function categorizeExpense() {
         return;
     }
 
-    addMessage("You: " + expenseDesc, "user");
-    const loadingMessage = addMessage("Bot: Categorizing your expense...", "bot loading");
-    expenseInput.value = "";
-
+    // Show loading overlay
+    document.getElementById('loading-overlay').classList.remove('hidden');
+    
+    // Add user message
+    addMessage(`You: ${expenseDesc}`, "user");
+    
     try {
-        // For Streamlit, we'll send data to the backend and parse the response
-        // Direct API calls to Streamlit can be tricky, so we might need to adjust this
         const response = await fetch(`${API_URL}/categorize`, {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ description: expenseDesc }),
-            mode: 'cors'
+            headers: { 
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({ description: expenseDesc })
         });
-
-        if (loadingMessage) loadingMessage.remove();
+        
+        // Hide loading overlay
+        document.getElementById('loading-overlay').classList.add('hidden');
         
         if (!response.ok) {
             // Fall back to local processing if API fails
@@ -78,17 +167,25 @@ async function categorizeExpense() {
             return;
         }
 
-        // Parse Streamlit response
+        // Parse response
         const data = await response.json();
         const category = data.category || getDefaultCategory(expenseDesc);
         const botResponse = `${data.message || "I've categorized this as:"} <span class="category-tag">${category}</span>`;
+        
         addMessage("Bot: " + botResponse, "bot", true);
         
         const messageElement = document.querySelector('.chat-message.bot:last-child');
         addCategoryIcon(messageElement, category);
         saveChatItem(expenseDesc, botResponse);
+        
+        // Clear input field
+        expenseInput.value = "";
     } catch (error) {
         console.error("Categorization error:", error);
+        
+        // Hide loading overlay
+        document.getElementById('loading-overlay').classList.add('hidden');
+        
         // Fallback to basic categorization
         const category = getDefaultCategory(expenseDesc);
         const botResponse = `I've categorized this as: <span class="category-tag">${category}</span>`;
@@ -97,11 +194,14 @@ async function categorizeExpense() {
         const messageElement = document.querySelector('.chat-message.bot:last-child');
         if (messageElement) addCategoryIcon(messageElement, category);
         saveChatItem(expenseDesc, botResponse);
+        
+        // Clear input field
+        expenseInput.value = "";
     }
 }
 
 function getDefaultCategory(description) {
-    // Simple fallback categorization when API is unavailable
+    // Simple fallback categorization for offline mode
     const desc = description.toLowerCase();
     if (desc.includes("restaurant") || desc.includes("food") || desc.includes("dinner") || 
         desc.includes("lunch") || desc.includes("breakfast") || desc.includes("coffee")) {
@@ -143,29 +243,23 @@ async function sendQuery() {
         return;
     }
 
-    addMessage("You: " + query, "user");
-    const loadingMessage = addMessage("Bot: Thinking...", "bot loading");
-    queryInput.value = "";
-    fetch('https://your-backend-url/your-endpoint', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(data)
-    })
-    .then(response => response.json())
-    .then(data => console.log('Success:', data))
-    .catch(error => console.error('Error:', error));
+    // Show loading overlay
+    document.getElementById('loading-overlay').classList.remove('hidden');
+    
+    // Add user message
+    addMessage(`You: ${query}`, "user");
     
     try {
         const response = await fetch(`${API_URL}/query`, {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ query }),
-            mode: 'cors'
+            headers: { 
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({ query })
         });
-
-        if (loadingMessage) loadingMessage.remove();
+        
+        // Hide loading overlay
+        document.getElementById('loading-overlay').classList.add('hidden');
         
         if (!response.ok) {
             // Fallback response
@@ -179,10 +273,21 @@ async function sendQuery() {
         const botResponse = data.response || "I'm not sure how to answer that.";
         addMessage("Bot: " + botResponse, "bot");
         saveChatItem(query, botResponse);
+        
+        // Clear input field
+        queryInput.value = "";
     } catch (error) {
+        console.error("Query error:", error);
+        
+        // Hide loading overlay
+        document.getElementById('loading-overlay').classList.add('hidden');
+        
         const fallbackResponse = "I'm currently unable to process your query. Please check your internet connection and try again.";
         addMessage("Bot: " + fallbackResponse, "bot error");
         saveChatItem(query, fallbackResponse);
+        
+        // Clear input field
+        queryInput.value = "";
     }
 }
 
@@ -190,11 +295,13 @@ function addMessage(text, sender, isHTML = false) {
     const chatbox = document.getElementById("chatbox");
     if (!chatbox) return null;
     
+    // Remove welcome message if it exists
     const welcomeMessage = document.querySelector('.welcome-message');
     if (welcomeMessage) {
         welcomeMessage.remove();
     }
     
+    // Create message element
     const messageDiv = document.createElement("div");
     messageDiv.className = `chat-message ${sender}`;
     
@@ -232,45 +339,52 @@ function addCategoryIcon(messageElement, category) {
 }
 
 function showToast(message) {
-    let toast = document.getElementById('toast');
-    if (!toast) {
-        toast = document.createElement('div');
-        toast.id = 'toast';
-        document.body.appendChild(toast);
-    }
+    const toast = document.getElementById('toast');
+    if (!toast) return;
     
     toast.textContent = message;
-    toast.className = 'show';
+    toast.className = 'toast show';
+    
+    // After 3 seconds, remove the show class
     setTimeout(() => {
-        toast.className = '';
+        toast.className = toast.className.replace("show", "");
     }, 3000);
 }
 
 function saveChatItem(question, answer) {
     const timestamp = new Date();
+    
+    // Add to chat history
     chatHistory.push({
         question,
         answer,
         timestamp: timestamp.toISOString()
     });
     
+    // Keep only the last 10 items for better performance
     if (chatHistory.length > 10) {
         chatHistory = chatHistory.slice(-10);
     }
     
-    localStorage.setItem('expenseBotChatHistory', JSON.stringify(chatHistory));
+    // Save to localStorage
+    localStorage.setItem('smartspend-chat-history', JSON.stringify(chatHistory));
+    
+    // Update sidebar
     updateChatHistorySidebar();
 }
 
 function loadChatHistory() {
     try {
-        const savedHistory = localStorage.getItem('expenseBotChatHistory');
+        const savedHistory = localStorage.getItem('smartspend-chat-history');
         if (savedHistory) {
             chatHistory = JSON.parse(savedHistory);
             updateChatHistorySidebar();
         }
     } catch (e) {
         console.error("Error loading chat history:", e);
+        // Clear potentially corrupted data
+        localStorage.removeItem('smartspend-chat-history');
+        chatHistory = [];
     }
 }
 
@@ -288,18 +402,23 @@ function updateChatHistorySidebar() {
         return;
     }
     
+    // Display chat history in sidebar
     chatHistory.forEach((item, index) => {
         const historyItem = document.createElement('div');
         historyItem.className = 'history-item';
+        
         const date = new Date(item.timestamp);
         const formattedTime = `${date.getHours()}:${String(date.getMinutes()).padStart(2, '0')}`;
+        
         const shortQuestion = item.question.length > 20 
             ? item.question.substring(0, 20) + '...' 
             : item.question;
+        
         historyItem.innerHTML = `<i class="fas fa-comment"></i> ${shortQuestion}`;
         historyItem.title = item.question;
         historyItem.dataset.index = index;
         historyItem.addEventListener('click', () => loadChatFromHistory(index));
+        
         historyContainer.appendChild(historyItem);
     });
 }
@@ -308,82 +427,51 @@ function loadChatFromHistory(index) {
     if (index >= 0 && index < chatHistory.length) {
         const item = chatHistory[index];
         const chatbox = document.getElementById('chatbox');
+        
         if (chatbox) {
             chatbox.innerHTML = '';
             addMessage("You: " + item.question, "user");
             addMessage("Bot: " + item.answer, "bot", true);
+            
+            // If it's a categorization, add the icon
+            if (item.answer.includes('category-tag')) {
+                const messageElement = document.querySelector('.chat-message.bot');
+                if (messageElement) {
+                    // Extract category from the answer
+                    const categoryMatch = item.answer.match(/category-tag">(.*?)<\/span>/);
+                    if (categoryMatch && categoryMatch[1]) {
+                        addCategoryIcon(messageElement, categoryMatch[1]);
+                    }
+                }
+            }
         }
     }
 }
 
-// Event listeners
-document.addEventListener('DOMContentLoaded', function() {
-    const newChatButton = document.querySelector('.new-chat');
-    if (newChatButton) {
-        newChatButton.addEventListener('click', function() {
-            const chatbox = document.getElementById('chatbox');
-            if (chatbox) {
-                chatbox.innerHTML = `
-                    <div class="welcome-message">
-                        <div class="welcome-icon"><i class="fas fa-hand-wave"></i></div>
-                        <h3>Welcome to SmartSpend Assistant!</h3>
-                        <p>I can help you categorize your expenses or answer questions about expense management.</p>
-                        <div class="suggestion-chips">
-                            <div class="chip" onclick="useExample('Dinner at an Italian restaurant')">Dinner at restaurant</div>
-                            <div class="chip" onclick="useExample('Monthly Netflix subscription')">Netflix subscription</div>
-                            <div class="chip" onclick="useExample('Uber ride to airport')">Uber ride</div>
-                        </div>
-                    </div>
-                `;
-            }
-            
-            const expenseDesc = document.getElementById('expense-desc');
-            if (expenseDesc) expenseDesc.value = '';
-            
-            const queryInput = document.getElementById('query-input');
-            if (queryInput) queryInput.value = '';
-        });
+function addToHistory() {
+    const now = new Date();
+    const timeStr = `${now.getHours()}:${String(now.getMinutes()).padStart(2, '0')}`;
+    
+    // Create a new empty chat entry
+    chatHistory.unshift({
+        question: "New Chat",
+        answer: "",
+        timestamp: now.toISOString()
+    });
+    
+    // Keep only the last 10 items
+    if (chatHistory.length > 10) {
+        chatHistory = chatHistory.slice(0, 10);
     }
+    
+    // Save to localStorage
+    localStorage.setItem('smartspend-chat-history', JSON.stringify(chatHistory));
+    
+    // Update sidebar
+    updateChatHistorySidebar();
+}
 
-    const darkModeToggle = document.getElementById('dark-mode-toggle');
-    if (darkModeToggle) {
-        darkModeToggle.addEventListener('click', function() {
-            document.body.classList.toggle('light-mode');
-            const icon = this.querySelector('i');
-            if (document.body.classList.contains('light-mode')) {
-                icon.className = 'fas fa-sun';
-                this.innerHTML = '<i class="fas fa-sun"></i> Light Mode';
-            } else {
-                icon.className = 'fas fa-moon';
-                this.innerHTML = '<i class="fas fa-moon"></i> Dark Mode';
-            }
-        });
-    }
-
-    const expenseDesc = document.getElementById('expense-desc');
-    if (expenseDesc) {
-        expenseDesc.addEventListener('keypress', function(e) {
-            if (e.key === 'Enter') {
-                categorizeExpense();
-            }
-        });
-    }
-
-    const queryInput = document.getElementById('query-input');
-    if (queryInput) {
-        queryInput.addEventListener('keypress', function(e) {
-            if (e.key === 'Enter') {
-                sendQuery();
-            }
-        });
-    }
-});
-
-// Helper function for example chips
 function useExample(text) {
-    const expenseDesc = document.getElementById('expense-desc');
-    if (expenseDesc) {
-        expenseDesc.value = text;
-        categorizeExpense();
-    }
+    document.getElementById('expense-desc').value = text;
+    categorizeExpense();
 }

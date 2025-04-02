@@ -9,6 +9,8 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <!-- Font Awesome for icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Favicon -->
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>💰</text></svg>">
 </head>
 <body>
     <div class="sidebar">
@@ -83,7 +85,7 @@
         <div class="app-footer">
             <p><i class="fas fa-code"></i> Developed By VDA Team (LPU) • <span id="current-year"></span></p>
             <div class="status-indicator">
-                <span id="api-status" class="status-offline">API offline</span>
+                <span id="api-status" class="status-checking">Checking API...</span>
             </div>
         </div>
     </div>
@@ -94,84 +96,9 @@
         <p>Processing request...</p>
     </div>
 
+    <!-- Toast notification -->
+    <div id="toast" class="toast"></div>
+
     <script src="script.js"></script>
-    <script>
-        // Set current year in footer
-        document.getElementById('current-year').textContent = new Date().getFullYear();
-        
-        // Handle Enter key press in input fields
-        document.getElementById('expense-desc').addEventListener('keypress', function(e) {
-            if (e.key === 'Enter') {
-                categorizeExpense();
-            }
-        });
-        
-        document.getElementById('query-input').addEventListener('keypress', function(e) {
-            if (e.key === 'Enter') {
-                sendQuery();
-            }
-        });
-        
-        // New chat button functionality
-        document.querySelector('.new-chat').addEventListener('click', function() {
-            document.getElementById('chatbox').innerHTML = `
-                <div class="welcome-message">
-                    <div class="welcome-icon"><i class="fas fa-hand-wave"></i></div>
-                    <h3>Welcome to SmartSpend Assistant!</h3>
-                    <p>I can help you categorize your expenses or answer questions about expense management.</p>
-                    <div class="suggestion-chips">
-                        <div class="chip" onclick="useExample('Dinner at an Italian restaurant')">Dinner at restaurant</div>
-                        <div class="chip" onclick="useExample('Monthly Netflix subscription')">Netflix subscription</div>
-                        <div class="chip" onclick="useExample('Uber ride to airport')">Uber ride</div>
-                    </div>
-                </div>
-            `;
-            document.getElementById('expense-desc').value = '';
-            document.getElementById('query-input').value = '';
-            addToHistory();
-        });
-        
-        // Dark/Light mode toggle
-        document.getElementById('dark-mode-toggle').addEventListener('click', function() {
-            document.body.classList.toggle('light-mode');
-            const icon = this.querySelector('i');
-            if (document.body.classList.contains('light-mode')) {
-                icon.className = 'fas fa-sun';
-                this.innerHTML = '<i class="fas fa-sun"></i> Light Mode';
-            } else {
-                icon.className = 'fas fa-moon';
-                this.innerHTML = '<i class="fas fa-moon"></i> Dark Mode';
-            }
-        });
-        
-        // Add chat to history
-        function addToHistory() {
-            const now = new Date();
-            const timeStr = `${now.getHours()}:${String(now.getMinutes()).padStart(2, '0')}`;
-            const historyItem = document.createElement('div');
-            historyItem.className = 'history-item';
-            historyItem.innerHTML = `<i class="fas fa-comment"></i> Chat ${timeStr}`;
-            document.getElementById('chat-history').prepend(historyItem);
-        }
-        
-        // Use example suggestions
-        function useExample(text) {
-            document.getElementById('expense-desc').value = text;
-            categorizeExpense();
-        }
-        
-        // Check API status on page load
-        window.addEventListener('load', async function() {
-            try {
-                const response = await fetch(`${API_URL}/`);
-                if (response.ok) {
-                    document.getElementById('api-status').className = 'status-online';
-                    document.getElementById('api-status').textContent = 'API online';
-                }
-            } catch (error) {
-                console.error("API check failed:", error);
-            }
-        });
-    </script>
 </body>
 </html>

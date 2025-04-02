@@ -1,6 +1,6 @@
 import streamlit as st
 import json
-from app import get_category_from_mistral, get_query_response
+from main import get_category_from_mistral, get_query_response
 
 # Enable CORS
 def enable_cors():
@@ -95,5 +95,5 @@ if __name__ == "__main__":
         st.stop()
     else:
         # Import and run the main app if not an API request
-        from app import main
+        from main import main
         main()
