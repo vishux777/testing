@@ -1,73 +1,74 @@
 I am not sole owner of this repo. COpying this for personal purposes would not be accepted.
-# SmartSpend - Expense Categorization Assistant
+# SmartSpend - Expense Categorization App
 
-SmartSpend is an AI-powered expense categorization tool that helps users organize their spending by automatically categorizing expenses and answering finance-related questions.
+SmartSpend is an AI-powered expense categorization application that helps users organize their spending by automatically categorizing expense descriptions.
 
 ## Features
 
-- Automatic expense categorization using Mistral AI
-- Finance question answering
-- User-friendly interface with dark/light mode
-- Chat history storage
+- AI-powered expense categorization using Mistral AI
+- Web interface with dark/light mode
+- Chat history and saved preferences
+- Full responsive design for mobile and desktop
 
-## Project Structure
+## Setup
 
-- Backend: Streamlit app with Mistral AI integration
-- Frontend: HTML/CSS/JS web application
+### Prerequisites
 
-## Setup and Deployment
+- Python 3.8+
+- Streamlit account
+- Mistral AI API key
 
-### Backend Deployment (Streamlit)
+### Deployment Options
 
-1. Create a Streamlit account at [https://streamlit.io/](https://streamlit.io/)
-2. Install Streamlit CLI: `pip install streamlit`
-3. Create a new GitHub repository for your backend code
-4. Add these files to your repository:
-   - `app.py`
-   - `streamlit_api.py`
-   - `requirements.txt`
-5. Create a `.streamlit` folder with a `secrets.toml` file inside (don't commit this to public repositories)
-6. Add your Mistral API key to the `secrets.toml` file:
-   ```
-   MISTRAL_API_KEY = "your-api-key"
-   ```
-7. Deploy to Streamlit Cloud:
-   - Go to [https://share.streamlit.io/](https://share.streamlit.io/)
-   - Connect your GitHub repository
-   - Select the main file: `streamlit_api.py`
-   - Deploy the app
-   - Add your secrets in the Streamlit dashboard
+#### 1. Streamlit Cloud
 
-### Frontend Deployment (GitHub Pages)
+This application is deployed on Streamlit Cloud at: [https://smartspend.streamlit.app/](https://smartspend.streamlit.app/)
 
-1. Create a separate GitHub repository for your frontend code
-2. Add these files to your repository:
-   - `index.html`
-   - `style.css`
-   - `script.js`
-3. Update the `API_URL` in `script.js` to point to your deployed Streamlit app URL
-4. Enable GitHub Pages:
-   - Go to your repository settings
-   - Navigate to the "Pages" section
-   - Select "main" branch as the source
-   - Save the settings
-5. Your site will be published at `https://yourusername.github.io/repository-name/`
+To deploy your own version:
+
+1. Fork this repository on GitHub
+2. Create an account on [Streamlit Cloud](https://streamlit.io/cloud)
+3. Connect your GitHub repository to Streamlit Cloud
+4. Add your Mistral API key in the Streamlit secrets management system
+5. Deploy the app
+
+#### 2. Web Hosting with GitHub Pages
+
+The web frontend can be deployed to GitHub Pages or any static hosting service:
+
+1. Host the static files (index.html, style.css, script.js) on GitHub Pages
+2. Configure the JavaScript to point to your Streamlit API endpoint
+3. Ensure CORS is properly set up on your Streamlit API
+
+## File Structure
+
+- `app.py` - Main Streamlit application
+- `streamlit_api.py` - API endpoints for frontend interaction
+- `index.html` - Web frontend interface
+- `style.css` - Styling for web interface
+- `script.js` - Frontend JavaScript
+- `.streamlit/secrets.toml` - Streamlit secrets configuration (not included in repository)
+
+## API Endpoints
+
+The application exposes the following API endpoints:
+
+- `POST /categorize` - Categorizes an expense description
+  - Request body: `{"description": "Your expense description"}`
+  - Response: `{"category": "category_name", "message": "Friendly message"}`
+
+- `POST /query` - Answers finance-related questions
+  - Request body: `{"query": "Your finance question"}`
+  - Response: `{"response": "AI response to query"}`
 
 ## Local Development
 
-To run the app locally:
+1. Clone the repository
+2. Create a `.env` file with `MISTRAL_API_KEY=your_api_key`
+3. Run with `streamlit run streamlit_api.py`
+4. For web frontend testing, serve the static files with a local server
 
-1. Clone both repositories
-2. Create a `.env` file in the backend folder with `MISTRAL_API_KEY=your-api-key`
-3. Run the backend: `streamlit run streamlit_api.py`
-4. Open the frontend `index.html` in your browser
+## Credits
 
-## Usage
-
-1. Enter an expense description in the input field (e.g., "Dinner at restaurant")
-2. Click "Categorize" to see the expense category
-3. Alternatively, ask finance-related questions in the query section
-
-## License
-
-This project is for personal use only. Copying this project without permission is not allowed.
+- Powered by [Mistral AI](https://mistral.ai/)
+- Built with [Streamlit](https://streamlit.io/) and vanilla JavaScript

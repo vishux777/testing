@@ -1,5 +1,5 @@
-// Configure the API URL - Set to local server when developing locally
-const API_URL = ""; // Empty means same origin (same server)
+// Configure the API URL - Points to the Streamlit deployment
+const API_URL = "https://smartspend.streamlit.app"; // Streamlit deployment URL
 
 // Chat history storage
 let chatHistory = [];

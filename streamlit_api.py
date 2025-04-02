@@ -1,6 +1,6 @@
 import streamlit as st
 import json
-from main import get_category_from_mistral, get_query_response
+from app import get_category_from_mistral, get_query_response, get_default_category
 
 # Enable CORS
 def enable_cors():
@@ -24,8 +24,13 @@ def handle_categorize():
         if not description:
             return {"status": "error", "message": "Missing description"}
         
-        # Get category from Mistral
-        category = get_category_from_mistral(description)
+        # Try to get category from Mistral
+        try:
+            category = get_category_from_mistral(description)
+        except Exception as e:
+            # Fallback to local categorization if Mistral fails
+            category = get_default_category(description)
+            st.error(f"Falling back to local categorization: {str(e)}")
         
         # Prepare friendly message
         friendly_messages = {
@@ -47,6 +52,7 @@ def handle_categorize():
             "message": friendly_messages.get(category, f"Categorized as {category}.")
         }
     except Exception as e:
+        st.error(f"Error handling categorize: {str(e)}")
         return {"status": "error", "message": str(e)}
 
 # API endpoint for queries
@@ -69,6 +75,7 @@ def handle_query():
             "response": response
         }
     except Exception as e:
+        st.error(f"Error handling query: {str(e)}")
         return {"status": "error", "message": str(e)}
 
 # Route API requests
@@ -83,6 +90,9 @@ def api_router():
     elif st.request.method == "OPTIONS":
         enable_cors()
         return {"status": "success"}
+    elif path == "/":
+        enable_cors()
+        return {"status": "success", "message": "API is running"}
     else:
         enable_cors()
         return {"status": "error", "message": "Invalid endpoint or method"}
@@ -95,5 +105,5 @@ if __name__ == "__main__":
         st.stop()
     else:
         # Import and run the main app if not an API request
-        from main import main
+        from app import main
         main()
