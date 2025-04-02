@@ -146,7 +146,17 @@ async function sendQuery() {
     addMessage("You: " + query, "user");
     const loadingMessage = addMessage("Bot: Thinking...", "bot loading");
     queryInput.value = "";
-
+    fetch('https://your-backend-url/your-endpoint', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(data)
+    })
+    .then(response => response.json())
+    .then(data => console.log('Success:', data))
+    .catch(error => console.error('Error:', error));
+    
     try {
         const response = await fetch(`${API_URL}/query`, {
             method: "POST",

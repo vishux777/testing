@@ -2,7 +2,24 @@ import streamlit as st
 import requests
 import os
 from dotenv import load_dotenv
+from flask import Flask, request, jsonify
+from flask_cors import CORS
 
+app = Flask(__name__)
+CORS(app, resources={r"/*": {"origins": "*"}})  # Enable CORS globally
+
+@app.route('/your-endpoint', methods=['POST'])
+def your_function():
+    data = request.json
+    # Process the data as needed
+    response = jsonify({'message': 'Success', 'data_received': data})
+    response.headers.add('Access-Control-Allow-Origin', '*')
+    response.headers.add('Access-Control-Allow-Headers', 'Content-Type, Authorization')
+    response.headers.add('Access-Control-Allow-Methods', 'POST, OPTIONS')
+    return response
+
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=5000)
 # Load environment variables from .env file if it exists
 load_dotenv()
 
