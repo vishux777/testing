@@ -1,6 +1,6 @@
 // Configure the API URL - change this to your Streamlit deployment URL when deployed
-const API_URL = "http://localhost:8501"; // Default for local development
-// const API_URL = "https://smartspend-backend.streamlit.app"; // Uncomment and change this when deployed
+//const API_URL = "http://localhost:8501"; // Default for local development
+const API_URL = "https://smartspend.streamlit.app/"; // Uncomment and change this when deployed
 
 let chatHistory = [];
 
