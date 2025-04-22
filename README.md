@@ -3,6 +3,7 @@ I am not sole owner of this repo. COpying this for personal purposes would not b
 
 SmartSpend is an AI-powered expense categorization application that helps users organize their spending by automatically categorizing expense descriptions.
 
+
 ## Features
 
 - AI-powered expense categorization using Mistral AI
